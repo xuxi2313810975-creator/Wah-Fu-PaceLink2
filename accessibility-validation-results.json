@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "errors": [],
+  "checks": [
+    "labelled top-right login, read-aloud and text-size buttons",
+    "demo preferences save and reload",
+    "shared URL overrides saved home",
+    "modal keyboard Escape and focus return",
+    "no password collection",
+    "voice choice zh-HK/en-GB, slower rate, stop and finish",
+    "speech uses current section and stops after progress changes",
+    "language switch preserves section",
+    "320/390/768/1024/1440px layouts in large text",
+    "mobile Next button collapses planning controls",
+    "visible current heading below sticky header",
+    "clear saved profile",
+    "fully translated visible English UI",
+    "unsupported speech and blocked storage fallback"
+  ],
+  "speechVerification": "SpeechSynthesis mocked to check control logic. Audible sound and voice quality are not verified by headless testing."
+}

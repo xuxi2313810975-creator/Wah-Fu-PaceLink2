@@ -1,0 +1,40 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{})});
+await fs.mkdir('test-results',{recursive:true});
+const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+try{
+ await page.goto((process.env.BASE_URL||'http://127.0.0.1:4173')+'/?lang=zh&origin=H13&destination=R3');
+ await page.locator('.imported-basemap path').first().waitFor();
+ assert.equal(await page.locator('.imported-basemap path').count(),597);assert.match(await page.locator('#map-marker-count').innerText(),/215/);
+ await page.locator('.map-wrap').screenshot({path:'test-results/wahfu-v4-map-desktop-zh.png'});
+ assert.ok(await page.locator('.detail-place-label').count()>0);
+ const countBefore=await page.locator('.poi-marker').count();await page.locator('#zoom-in').click();assert.ok(await page.locator('.poi-marker').count()>0);
+ const before=await page.locator('.map-layer').getAttribute('transform');
+ await page.locator('#map-category').selectOption('useful');assert.match(await page.locator('#map-marker-count').innerText(),/30/);assert.equal(await page.locator('.map-layer').getAttribute('transform'),before,'Filtering must retain pan/zoom');
+ const lifts=await page.evaluate(()=>WAHFU_MAP.places.filter(p=>p.category==='lift'));
+ await page.locator('#map-place').selectOption(lifts[0].id);assert.equal(await page.locator('#map-place-card').isVisible(),true);assert.match(await page.locator('#map-place-card').innerText(),/升降機/);assert.ok(await page.locator('.selected-poi').count());
+ assert.equal(await page.locator('#map-place-card a').getAttribute('href'),lifts[0].source);
+ await page.screenshot({path:'test-results/wahfu-v4-lift-zh.png'});
+ const liftTransform=await page.locator('.map-layer').getAttribute('transform');const selected=await page.locator('#map-place').inputValue();await page.locator('[data-lang=en]').click();assert.equal(await page.locator('#map-place').inputValue(),selected);assert.match(await page.locator('#map-place-card').innerText(),/lift/i);assert.equal(await page.locator('.map-layer').getAttribute('transform'),liftTransform,'Language switch must retain map view');
+ await page.locator('#map-category').selectOption('all');
+ const school=await page.evaluate(()=>WAHFU_MAP.places.find(p=>p.name.en==='Pok Fu Lam Public Library'));
+ assert.ok(school);await page.locator('#map-place').selectOption(school.id);assert.match(await page.locator('#map-place-card').innerText(),/Pok Fu Lam Public Library/);
+ await page.locator('#map-labels').uncheck();assert.equal(await page.locator('.detail-place-label').count(),0);await page.locator('#map-labels').check();assert.ok(await page.locator('.detail-place-label').count()>0);
+ await page.locator('#map-category').selectOption('shops');assert.match(await page.locator('#map-marker-count').innerText(),/22/);
+ const shop=await page.evaluate(()=>WAHFU_MAP.places.find(p=>p.name.en==='Circle K'));
+ await page.locator('#map-place').selectOption(shop.id);assert.match(await page.locator('#map-place-card').innerText(),/Circle K/);
+ await page.locator('#map-card-close').click();assert.equal(await page.locator('#map-place-card').isVisible(),false);
+ await page.locator('#map-category').selectOption('stairs');assert.match(await page.locator('#map-marker-count').innerText(),/52/);
+ await page.locator('#map-place').selectOption({index:1});assert.match(await page.locator('#map-place-card').innerText(),/does not mean the selected route/);
+ await page.locator('#map-category').selectOption('all');await page.locator('#fit-estate').click();
+ const cluster=page.locator('[data-cluster]').first();assert.ok(await cluster.count());const initial=await page.locator('.map-layer').getAttribute('transform');await cluster.click();assert.notEqual(await page.locator('.map-layer').getAttribute('transform'),initial);
+ await page.locator('.route-overview>summary').click();assert.equal(await page.locator('#time-slow').innerText(),'15 min');assert.equal(await page.locator('#total-time').innerText(),'17');
+ await page.locator('#demo-position').selectOption('0');await page.locator('[data-action=continue]').click();await page.locator('[data-action=reached]').waitFor();assert.ok(await page.locator('.stage-line').getAttribute('d'));
+ await page.locator('#text-size-toggle').click();
+ for(const width of [390,320]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Overflow ${width}`);}
+ await page.locator('[data-lang=zh]').click();await page.setViewportSize({width:390,height:1000});await page.locator('#map-category').selectOption('useful');await page.locator('.map-wrap').screenshot({path:'test-results/wahfu-v4-map-mobile-zh.png'});
+ assert.deepEqual(errors,[]);
+ await fs.writeFile('test-results/wahfu-v4-map-validation.json',JSON.stringify({passed:true,errors,source:'map.osm',features:597,places:215,checks:['OSM geometry renders','Chinese landmark labels','useful facility filter (30)','selection focuses original OSM place','source link and unverified lift message','language preserves selected place and map view','library and shop lookup','hide/show names','stairs distinction from route','cluster zoom','filter retains zoom','original 15 min route and 17 min total retained','staged route still renders','large text 320/390px no overflow']},null,2));console.log('Map checks passed', {countBefore});
+}finally{await browser.close();}

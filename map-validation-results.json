@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "errors": [],
+  "source": "map.osm",
+  "features": 597,
+  "places": 215,
+  "checks": [
+    "OSM geometry renders",
+    "Chinese landmark labels",
+    "useful facility filter (30)",
+    "selection focuses original OSM place",
+    "source link and unverified lift message",
+    "language preserves selected place and map view",
+    "library and shop lookup",
+    "hide/show names",
+    "stairs distinction from route",
+    "cluster zoom",
+    "filter retains zoom",
+    "original 15 min route and 17 min total retained",
+    "staged route still renders",
+    "large text 320/390px no overflow"
+  ]
+}
